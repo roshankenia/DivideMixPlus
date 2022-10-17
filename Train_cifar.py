@@ -38,11 +38,6 @@ parser.add_argument('--data_path', default='./cifar-10',
 parser.add_argument('--dataset', default='cifar10', type=str)
 args = parser.parse_args()
 
-torch.cuda.set_device(args.gpuid)
-random.seed(args.seed)
-torch.manual_seed(args.seed)
-torch.cuda.manual_seed_all(args.seed)
-
 # ensure we are running on the correct gpu
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"  # (xxxx is your specific GPU ID)
@@ -52,6 +47,9 @@ if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
 else:
     print('GPU is being properly used')
 
+random.seed(args.seed)
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
 
 # Training
 def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader):
