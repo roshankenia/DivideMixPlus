@@ -118,20 +118,21 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         all_targets_extended = torch.cat(
             [targets_x, targets_x, targets_x, targets_x, targets_u, targets_u, targets_u, targets_u], dim=0)
 
-        idx = torch.randperm(all_inputs.size(0))
+        idx = torch.cat((torch.randperm(all_inputs.size(0)),
+                        torch.randperm(all_inputs.size(0))))
 
-        input_a, input_b = all_inputs, all_inputs[idx]
-        target_a, target_b = all_targets, all_targets[idx]
+        input_a, input_b = all_inputs_extended, all_inputs[idx]
+        target_a, target_b = all_targets_extended, all_targets[idx]
 
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
         logits = net(mixed_input)
-        logits_x = logits[:batch_size*2]
-        logits_u = logits[batch_size*2:]
+        logits_x = logits[:batch_size*4]
+        logits_u = logits[batch_size*4:]
 
         Lx, Lu, lamb = criterion(
-            logits_x, mixed_target[:batch_size*2], logits_u, mixed_target[batch_size*2:], epoch+batch_idx/num_iter, warm_up)
+            logits_x, mixed_target[:batch_size*4], logits_u, mixed_target[batch_size*4:], epoch+batch_idx/num_iter, warm_up)
 
         # regularization
         prior = torch.ones(args.num_class)/args.num_class
@@ -257,7 +258,7 @@ test_log = open('./checkpoint/%s_%.1f_%s' %
                 (args.dataset, args.r, args.noise_mode)+'_acc.txt', 'w')
 
 if args.dataset == 'cifar10':
-    warm_up = 10
+    warm_up = 0
 elif args.dataset == 'cifar100':
     warm_up = 30
 
