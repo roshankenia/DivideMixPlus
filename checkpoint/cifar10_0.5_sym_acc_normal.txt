@@ -1,0 +1,1 @@
+Total runtime of the program is: 00:00:04
