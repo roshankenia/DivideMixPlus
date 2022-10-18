@@ -114,12 +114,12 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
 
         # double mixup
         all_inputs_extended = torch.cat(
-            [inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_u, inputs_u2, inputs_u, inputs_u2, inputs_u, inputs_u2, inputs_u, inputs_u2], dim=0)
+            [inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_u, inputs_u2, inputs_u, inputs_u2], dim=0)
         all_targets_extended = torch.cat(
-            [targets_x, targets_x, targets_x, targets_x, targets_x, targets_x, targets_x, targets_x, targets_u, targets_u, targets_u, targets_u, targets_u, targets_u, targets_u, targets_u], dim=0)
+            [targets_x, targets_x, targets_x, targets_x, targets_u, targets_u, targets_u, targets_u], dim=0)
 
         idx = torch.cat((torch.randperm(all_inputs.size(0)),
-                        torch.randperm(all_inputs.size(0)), torch.randperm(all_inputs.size(0)), torch.randperm(all_inputs.size(0))))
+                        torch.randperm(all_inputs.size(0))))
 
         input_a, input_b = all_inputs_extended, all_inputs[idx]
         target_a, target_b = all_targets_extended, all_targets[idx]
@@ -128,11 +128,11 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         mixed_target = l * target_a + (1 - l) * target_b
 
         logits = net(mixed_input)
-        logits_x = logits[:batch_size*8]
-        logits_u = logits[batch_size*8:]
+        logits_x = logits[:batch_size*4]
+        logits_u = logits[batch_size*4:]
 
         Lx, Lu, lamb = criterion(
-            logits_x, mixed_target[:batch_size*8], logits_u, mixed_target[batch_size*8:], epoch+batch_idx/num_iter, warm_up)
+            logits_x, mixed_target[:batch_size*4], logits_u, mixed_target[batch_size*4:], epoch+batch_idx/num_iter, warm_up)
 
         # regularization
         prior = torch.ones(args.num_class)/args.num_class
