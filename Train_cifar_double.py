@@ -12,6 +12,7 @@ import numpy as np
 from PreResNet import *
 from sklearn.mixture import GaussianMixture
 import dataloader_cifar as dataloader
+import time
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR Training')
 parser.add_argument('--batch_size', default=64,
@@ -50,6 +51,9 @@ else:
 random.seed(args.seed)
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
+
+# store starting time
+begin = time.time()
 
 # Training
 
@@ -321,3 +325,10 @@ for epoch in range(args.num_epochs+1):
               unlabeled_trainloader)  # train net2
 
     test(epoch, net1, net2)
+
+# store end time
+end = time.time()
+timeTaken = time.strftime("%H:%M:%S", time.gmtime(end-begin))
+# total time taken
+test_log.write('Total runtime of the program is: ' + timeTaken)
+test_log.flush()

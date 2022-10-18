@@ -12,6 +12,7 @@ import numpy as np
 from PreResNet import *
 from sklearn.mixture import GaussianMixture
 import dataloader_cifar as dataloader
+import time
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR Training')
 parser.add_argument('--batch_size', default=64,
@@ -50,6 +51,9 @@ else:
 random.seed(args.seed)
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
+
+# store starting time
+begin = time.time()
 
 # Training
 def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader):
@@ -244,9 +248,9 @@ def create_model():
 
 
 stats_log = open('./checkpoint/%s_%.1f_%s' %
-                 (args.dataset, args.r, args.noise_mode)+'_stats.txt', 'w')
+                 (args.dataset, args.r, args.noise_mode)+'_stats_normal.txt', 'w')
 test_log = open('./checkpoint/%s_%.1f_%s' %
-                (args.dataset, args.r, args.noise_mode)+'_acc.txt', 'w')
+                (args.dataset, args.r, args.noise_mode)+'_acc_normal.txt', 'w')
 
 if args.dataset == 'cifar10':
     warm_up = 10
@@ -273,6 +277,13 @@ if args.noise_mode == 'asym':
     conf_penalty = NegEntropy()
 
 all_loss = [[], []]  # save the history of losses from two networks
+
+# store end time
+end = time.time()
+timeTaken = time.strftime("%H:%M:%S", time.gmtime(end-begin))
+# total time taken
+test_log.write('Total runtime of the program is: ' + timeTaken)
+test_log.flush()
 
 for epoch in range(args.num_epochs+1):
     lr = args.lr
@@ -312,3 +323,11 @@ for epoch in range(args.num_epochs+1):
               unlabeled_trainloader)  # train net2
 
     test(epoch, net1, net2)
+
+
+# store end time
+end = time.time()
+timeTaken = time.strftime("%H:%M:%S", time.gmtime(end-begin))
+# total time taken
+test_log.write('Total runtime of the program is: ' + timeTaken)
+test_log.flush()
