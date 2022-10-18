@@ -278,13 +278,6 @@ if args.noise_mode == 'asym':
 
 all_loss = [[], []]  # save the history of losses from two networks
 
-# store end time
-end = time.time()
-timeTaken = time.strftime("%H:%M:%S", time.gmtime(end-begin))
-# total time taken
-test_log.write('Total runtime of the program is: ' + timeTaken)
-test_log.flush()
-
 for epoch in range(args.num_epochs+1):
     lr = args.lr
     if epoch >= 150:
