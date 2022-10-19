@@ -37,6 +37,8 @@ parser.add_argument('--num_class', default=10, type=int)
 parser.add_argument('--data_path', default='./cifar-10',
                     type=str, help='path to dataset')
 parser.add_argument('--dataset', default='cifar10', type=str)
+parser.add_argument('--k', default=1, type=int,
+                    help='how many times you apply mixup')
 args = parser.parse_args()
 
 # ensure we are running on the correct gpu
@@ -58,7 +60,7 @@ begin = time.time()
 # Training
 
 
-def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader):
+def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader, k):
     net.train()
     net2.eval()  # fix one network and train the other
 
@@ -116,27 +118,39 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         all_targets = torch.cat(
             [targets_x, targets_x, targets_u, targets_u], dim=0)
 
-        # double mixup
-        all_inputs_extended = torch.cat(
-            [inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_u, inputs_u2, inputs_u, inputs_u2], dim=0)
-        all_targets_extended = torch.cat(
-            [targets_x, targets_x, targets_x, targets_x, targets_u, targets_u, targets_u, targets_u], dim=0)
+        inputs_a = []
+        targets_a = []
+        inputs_b = []
+        targets_b = []
 
-        idx = torch.cat((torch.randperm(all_inputs.size(0)),
-                        torch.randperm(all_inputs.size(0))))
+        for i in range(k):
+            idx = torch.randperm(all_inputs.size(0))
 
-        input_a, input_b = all_inputs_extended, all_inputs[idx]
-        target_a, target_b = all_targets_extended, all_targets[idx]
+            input_a, input_b = all_inputs, all_inputs[idx]
+            target_a, target_b = all_targets, all_targets[idx]
+
+            inputs_a.append(input_a)
+            inputs_b.append(input_b)
+            targets_a.append(target_a)
+            targets_b.append(target_b)
+
+        input_a = torch.cat(inputs_a, dim=0)
+        input_b = torch.cat(inputs_b, dim=0)
+        target_a = torch.cat(targets_a, dim=0)
+        target_b = torch.cat(targets_b, dim=0)
 
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
+        print(mixed_input.shape)
+        print(mixed_target.shape)
+
         logits = net(mixed_input)
-        logits_x = logits[:batch_size*4]
-        logits_u = logits[batch_size*4:]
+        logits_x = logits[:batch_size*2*k]
+        logits_u = logits[batch_size*2*k:]
 
         Lx, Lu, lamb = criterion(
-            logits_x, mixed_target[:batch_size*4], logits_u, mixed_target[batch_size*4:], epoch+batch_idx/num_iter, warm_up)
+            logits_x, mixed_target[:batch_size*2*k], logits_u, mixed_target[batch_size*2*k:], epoch+batch_idx/num_iter, warm_up)
 
         # regularization
         prior = torch.ones(args.num_class)/args.num_class
@@ -262,7 +276,7 @@ test_log = open('./checkpoint/%s_%.1f_%s' %
                 (args.dataset, args.r, args.noise_mode)+'_acc.txt', 'w')
 
 if args.dataset == 'cifar10':
-    warm_up = 10
+    warm_up = 0
 elif args.dataset == 'cifar100':
     warm_up = 30
 
@@ -316,13 +330,13 @@ for epoch in range(args.num_epochs+1):
         labeled_trainloader, unlabeled_trainloader = loader.run(
             'train', pred2, prob2)  # co-divide
         train(epoch, net1, net2, optimizer1, labeled_trainloader,
-              unlabeled_trainloader)  # train net1
+              unlabeled_trainloader, args.k)  # train net1
 
         print('\nTrain Net2')
         labeled_trainloader, unlabeled_trainloader = loader.run(
             'train', pred1, prob1)  # co-divide
         train(epoch, net2, net1, optimizer2, labeled_trainloader,
-              unlabeled_trainloader)  # train net2
+              unlabeled_trainloader, args.k)  # train net2
 
     test(epoch, net1, net2)
 
