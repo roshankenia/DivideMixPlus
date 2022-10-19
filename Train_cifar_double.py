@@ -143,8 +143,6 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
-        print(mixed_input.shape)
-
         logits = net(mixed_input)
         logits_x = logits[:batch_size*2*k]
         logits_u = logits[batch_size*2*k:]
@@ -276,7 +274,7 @@ test_log = open('./checkpoint/%s_%.1f_%s_%d' %
                 (args.dataset, args.r, args.noise_mode, args.k)+'_acc.txt', 'w')
 
 if args.dataset == 'cifar10':
-    warm_up = 0
+    warm_up = 10
 elif args.dataset == 'cifar100':
     warm_up = 30
 
