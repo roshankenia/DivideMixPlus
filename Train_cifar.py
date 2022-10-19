@@ -122,6 +122,9 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
+        print(mixed_input.shape)
+        print(mixed_target.shape)
+
         logits = net(mixed_input)
         logits_x = logits[:batch_size*2]
         logits_u = logits[batch_size*2:]
