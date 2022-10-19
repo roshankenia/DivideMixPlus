@@ -1,0 +1,1 @@
+Numer of labeled samples:29246   AUC:0.505
