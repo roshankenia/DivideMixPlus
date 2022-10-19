@@ -113,37 +113,37 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         l = np.random.beta(args.alpha, args.alpha)
         l = max(l, 1-l)
 
-        all_inputs = torch.cat(
-            [inputs_x, inputs_x2, inputs_u, inputs_u2], dim=0)
-        all_targets = torch.cat(
-            [targets_x, targets_x, targets_u, targets_u], dim=0)
-
-        inputs_a = []
-        targets_a = []
-        inputs_b = []
-        targets_b = []
-
+        x_input_list = []
+        u_input_list = []
+        x_target_list = []
+        u_target_list = []
         for i in range(k):
-            idx = torch.randperm(all_inputs.size(0))
+            x_input_list.append(inputs_x)
+            x_input_list.append(inputs_x2)
 
-            input_a, input_b = all_inputs, all_inputs[idx]
-            target_a, target_b = all_targets, all_targets[idx]
+            u_input_list.append(inputs_u)
+            u_input_list.append(inputs_u2)
 
-            inputs_a.append(input_a)
-            inputs_b.append(input_b)
-            targets_a.append(target_a)
-            targets_b.append(target_b)
+            x_target_list.append(targets_x)
+            x_target_list.append(targets_x)
 
-        input_a = torch.cat(inputs_a, dim=0)
-        input_b = torch.cat(inputs_b, dim=0)
-        target_a = torch.cat(targets_a, dim=0)
-        target_b = torch.cat(targets_b, dim=0)
+            u_target_list.append(targets_u)
+            u_target_list.append(targets_u)
+
+        inp = x_input_list + u_input_list
+        tar = x_target_list + u_target_list
+        all_inputs = torch.cat(inp, dim=0)
+        all_targets = torch.cat(tar, dim=0)
+
+        idx = torch.randperm(all_inputs.size(0))
+
+        input_a, input_b = all_inputs, all_inputs[idx]
+        target_a, target_b = all_targets, all_targets[idx]
 
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
         print(mixed_input.shape)
-        print(mixed_target.shape)
 
         logits = net(mixed_input)
         logits_x = logits[:batch_size*2*k]
@@ -270,10 +270,10 @@ def create_model():
     return model
 
 
-stats_log = open('./checkpoint/%s_%.1f_%s' %
-                 (args.dataset, args.r, args.noise_mode)+'_stats.txt', 'w')
-test_log = open('./checkpoint/%s_%.1f_%s' %
-                (args.dataset, args.r, args.noise_mode)+'_acc.txt', 'w')
+stats_log = open('./checkpoint/%s_%.1f_%s_%d' %
+                 (args.dataset, args.r, args.noise_mode, args.k)+'_stats.txt', 'w')
+test_log = open('./checkpoint/%s_%.1f_%s_%d' %
+                (args.dataset, args.r, args.noise_mode, args.k)+'_acc.txt', 'w')
 
 if args.dataset == 'cifar10':
     warm_up = 0
