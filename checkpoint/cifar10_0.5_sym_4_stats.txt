@@ -1,0 +1,16 @@
+Numer of labeled samples:24623   AUC:0.964
+Numer of labeled samples:25046   AUC:0.967
+Numer of labeled samples:23972   AUC:0.971
+Numer of labeled samples:24295   AUC:0.973
+Numer of labeled samples:24239   AUC:0.974
+Numer of labeled samples:24323   AUC:0.970
+Numer of labeled samples:23892   AUC:0.970
+Numer of labeled samples:24297   AUC:0.974
+Numer of labeled samples:24644   AUC:0.975
+Numer of labeled samples:24401   AUC:0.974
+Numer of labeled samples:24512   AUC:0.976
+Numer of labeled samples:24596   AUC:0.977
+Numer of labeled samples:24837   AUC:0.978
+Numer of labeled samples:24635   AUC:0.975
+Numer of labeled samples:24860   AUC:0.981
+Numer of labeled samples:24793   AUC:0.981
