@@ -117,6 +117,13 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         u_input_list = []
         x_target_list = []
         u_target_list = []
+
+        normal_inputs = torch.cat(
+            [inputs_x, inputs_x2, inputs_u, inputs_u2], dim=0)
+        normal_targets = torch.cat(
+            [targets_x, targets_x, targets_u, targets_u], dim=0)
+
+        id_list = []
         for i in range(k):
             x_input_list.append(inputs_x)
             x_input_list.append(inputs_x2)
@@ -130,15 +137,17 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
             u_target_list.append(targets_u)
             u_target_list.append(targets_u)
 
+            id_list.append(torch.randperm(normal_inputs.size(0)))
+
         inp = x_input_list + u_input_list
         tar = x_target_list + u_target_list
         all_inputs = torch.cat(inp, dim=0)
         all_targets = torch.cat(tar, dim=0)
 
-        idx = torch.randperm(all_inputs.size(0))
+        idx = torch.cat(id_list, dim=0)
 
-        input_a, input_b = all_inputs, all_inputs[idx]
-        target_a, target_b = all_targets, all_targets[idx]
+        input_a, input_b = all_inputs, normal_inputs[idx]
+        target_a, target_b = all_targets, normal_targets[idx]
 
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
