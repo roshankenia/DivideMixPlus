@@ -270,9 +270,9 @@ def create_model():
 
 
 stats_log = open('./checkpoint/%s_%.1f_%s_%d' %
-                 (args.dataset, args.r, args.noise_mode, args.k)+'_stats.txt', 'w')
+                 (args.dataset, args.r, args.noise_mode, args.k)+'_all_stats.txt', 'w')
 test_log = open('./checkpoint/%s_%.1f_%s_%d' %
-                (args.dataset, args.r, args.noise_mode, args.k)+'_acc.txt', 'w')
+                (args.dataset, args.r, args.noise_mode, args.k)+'_all_acc.txt', 'w')
 
 if args.dataset == 'cifar10':
     warm_up = 10
