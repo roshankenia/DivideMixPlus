@@ -56,6 +56,8 @@ torch.cuda.manual_seed_all(args.seed)
 begin = time.time()
 
 # Training
+
+
 def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader):
     net.train()
     net2.eval()  # fix one network and train the other
@@ -114,13 +116,16 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         all_targets = torch.cat(
             [targets_x, targets_x, targets_u, targets_u], dim=0)
 
-        idx = torch.randperm(all_inputs.size(0))
+        idx_1 = torch.randperm(all_inputs.size(0))
+        idx_2 = torch.randperm(all_inputs.size(0))
 
-        input_a, input_b = all_inputs, all_inputs[idx]
-        target_a, target_b = all_targets, all_targets[idx]
+        half_inv_lam = (1-l)/2
 
-        mixed_input = l * input_a + (1 - l) * input_b
-        mixed_target = l * target_a + (1 - l) * target_b
+        input_a, input_b, input_c = all_inputs, all_inputs[idx_1], all_inputs[idx_2]
+        target_a, target_b, target_c = all_targets, all_targets[idx_1], all_targets[idx_2]
+
+        mixed_input = l * input_a + half_inv_lam * input_b + half_inv_lam * input_c
+        mixed_target = l * target_a + half_inv_lam * target_b + half_inv_lam * target_c
 
         logits = net(mixed_input)
         logits_x = logits[:batch_size*2]
