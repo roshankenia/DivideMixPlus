@@ -258,7 +258,7 @@ test_log = open('./checkpoint/%s_%.1f_%s' %
                 (args.dataset, args.r, args.noise_mode)+'_acc_two_random.txt', 'w')
 
 if args.dataset == 'cifar10':
-    warm_up = 10
+    warm_up = 0
 elif args.dataset == 'cifar100':
     warm_up = 30
 
