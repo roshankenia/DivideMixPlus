@@ -64,6 +64,105 @@ if(args.k != 2 and args.k != 4):
 # Training
 
 
+def train_k_4(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader):
+    net.train()
+    net2.eval()  # fix one network and train the other
+
+    unlabeled_train_iter = iter(unlabeled_trainloader)
+    num_iter = (len(labeled_trainloader.dataset)//args.batch_size)+1
+    for batch_idx, (inputs_x, inputs_x2, labels_x, w_x) in enumerate(labeled_trainloader):
+        try:
+            inputs_u, inputs_u2 = unlabeled_train_iter.next()
+        except:
+            unlabeled_train_iter = iter(unlabeled_trainloader)
+            inputs_u, inputs_u2 = unlabeled_train_iter.next()
+        batch_size = inputs_x.size(0)
+
+        # Transform label to one-hot
+        labels_x = torch.zeros(batch_size, args.num_class).scatter_(
+            1, labels_x.view(-1, 1), 1)
+        w_x = w_x.view(-1, 1).type(torch.FloatTensor)
+
+        inputs_x, inputs_x2, labels_x, w_x = inputs_x.cuda(
+        ), inputs_x2.cuda(), labels_x.cuda(), w_x.cuda()
+        inputs_u, inputs_u2 = inputs_u.cuda(), inputs_u2.cuda()
+
+        with torch.no_grad():
+            # label co-guessing of unlabeled samples
+            outputs_u11 = net(inputs_u)
+            outputs_u12 = net(inputs_u2)
+            outputs_u21 = net2(inputs_u)
+            outputs_u22 = net2(inputs_u2)
+
+            pu = (torch.softmax(outputs_u11, dim=1) + torch.softmax(outputs_u12, dim=1) +
+                  torch.softmax(outputs_u21, dim=1) + torch.softmax(outputs_u22, dim=1)) / 4
+            ptu = pu**(1/args.T)  # temparature sharpening
+
+            targets_u = ptu / ptu.sum(dim=1, keepdim=True)  # normalize
+            targets_u = targets_u.detach()
+
+            # label refinement of labeled samples
+            outputs_x = net(inputs_x)
+            outputs_x2 = net(inputs_x2)
+
+            px = (torch.softmax(outputs_x, dim=1) +
+                  torch.softmax(outputs_x2, dim=1)) / 2
+            px = w_x*labels_x + (1-w_x)*px
+            ptx = px**(1/args.T)  # temparature sharpening
+
+            targets_x = ptx / ptx.sum(dim=1, keepdim=True)  # normalize
+            targets_x = targets_x.detach()
+
+        # mixmatch
+        l = np.random.beta(args.alpha, args.alpha)
+        l = max(l, 1-l)
+
+        all_inputs = torch.cat(
+            [inputs_x, inputs_x2, inputs_u, inputs_u2], dim=0)
+        all_targets = torch.cat(
+            [targets_x, targets_x, targets_u, targets_u], dim=0)
+
+        all_inputs_extended = torch.cat(
+            [inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_x, inputs_x2, inputs_u, inputs_u2, inputs_u, inputs_u2, inputs_u, inputs_u2, inputs_u, inputs_u2], dim=0)
+        all_targets_extended = torch.cat(
+            [targets_x, targets_x, targets_x, targets_x, targets_x, targets_x, targets_x, targets_x, targets_u, targets_u, targets_u, targets_u, targets_u, targets_u, targets_u, targets_u], dim=0)
+
+        idx = torch.cat((torch.randperm(all_inputs.size(0)),
+                        torch.randperm(all_inputs.size(0)), torch.randperm(
+                            all_inputs.size(0)),
+                        torch.randperm(all_inputs.size(0))))
+
+        input_a, input_b = all_inputs_extended, all_inputs[idx]
+        target_a, target_b = all_targets_extended, all_targets[idx]
+
+        mixed_input = l * input_a + (1 - l) * input_b
+        mixed_target = l * target_a + (1 - l) * target_b
+
+        logits = net(mixed_input)
+        logits_x = logits[:batch_size*8]
+        logits_u = logits[batch_size*8:]
+
+        Lx, Lu, lamb = criterion(
+            logits_x, mixed_target[:batch_size*8], logits_u, mixed_target[batch_size*8:], epoch+batch_idx/num_iter, warm_up)
+
+        # regularization
+        prior = torch.ones(args.num_class)/args.num_class
+        prior = prior.cuda()
+        pred_mean = torch.softmax(logits, dim=1).mean(0)
+        penalty = torch.sum(prior*torch.log(prior/pred_mean))
+
+        loss = Lx + lamb * Lu + penalty
+        # compute gradient and do SGD step
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        sys.stdout.write('\r')
+        sys.stdout.write('%s:%.1f-%s | Epoch [%3d/%3d] Iter[%3d/%3d]\t Labeled loss: %.2f  Unlabeled loss: %.2f'
+                         % (args.dataset, args.r, args.noise_mode, epoch, args.num_epochs, batch_idx+1, num_iter, Lx.item(), Lu.item()))
+        sys.stdout.flush()
+
+
 def train_k_2(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloader):
     net.train()
     net2.eval()  # fix one network and train the other
@@ -267,7 +366,7 @@ test_log = open('./checkpoint/%s_%.1f_%s_k%d' %
                 (args.dataset, args.r, args.noise_mode, args.k)+'_acc_no_loop.txt', 'w')
 
 if args.dataset == 'cifar10':
-    warm_up = 0
+    warm_up = 10
 elif args.dataset == 'cifar100':
     warm_up = 30
 
@@ -316,18 +415,30 @@ for epoch in range(args.num_epochs+1):
 
         pred1 = (prob1 > args.p_threshold)
         pred2 = (prob2 > args.p_threshold)
+        if args.k == 2:
+            print('Train Net1')
+            labeled_trainloader, unlabeled_trainloader = loader.run(
+                'train', pred2, prob2)  # co-divide
+            train_k_2(epoch, net1, net2, optimizer1, labeled_trainloader,
+                      unlabeled_trainloader)  # train net1
 
-        print('Train Net1')
-        labeled_trainloader, unlabeled_trainloader = loader.run(
-            'train', pred2, prob2)  # co-divide
-        train_k_2(epoch, net1, net2, optimizer1, labeled_trainloader,
-                  unlabeled_trainloader)  # train net1
+            print('\nTrain Net2')
+            labeled_trainloader, unlabeled_trainloader = loader.run(
+                'train', pred1, prob1)  # co-divide
+            train_k_2(epoch, net2, net1, optimizer2, labeled_trainloader,
+                      unlabeled_trainloader)  # train net2
+        elif args.k == 4:
+            print('Train Net1')
+            labeled_trainloader, unlabeled_trainloader = loader.run(
+                'train', pred2, prob2)  # co-divide
+            train_k_4(epoch, net1, net2, optimizer1, labeled_trainloader,
+                      unlabeled_trainloader)  # train net1
 
-        print('\nTrain Net2')
-        labeled_trainloader, unlabeled_trainloader = loader.run(
-            'train', pred1, prob1)  # co-divide
-        train_k_2(epoch, net2, net1, optimizer2, labeled_trainloader,
-                  unlabeled_trainloader)  # train net2
+            print('\nTrain Net2')
+            labeled_trainloader, unlabeled_trainloader = loader.run(
+                'train', pred1, prob1)  # co-divide
+            train_k_4(epoch, net2, net1, optimizer2, labeled_trainloader,
+                      unlabeled_trainloader)  # train net2
 
     test(epoch, net1, net2)
 
