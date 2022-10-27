@@ -57,7 +57,7 @@ torch.cuda.manual_seed_all(args.seed)
 # store starting time
 begin = time.time()
 
-if(args.k != 2 or args.k != 4):
+if(args.k != 2 and args.k != 4):
     print("Invalid k")
     exit()
 
